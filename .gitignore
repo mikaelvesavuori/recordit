@@ -1,0 +1,10 @@
+
+.astro/
+.build/
+.DS_Store
+.vscode
+benchmarks/results/*
+DerivedData/
+dist/
+node_modules/
+packaging/AppIcon.iconset/

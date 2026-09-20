@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Release
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Derive version from tag
+        id: version
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+            echo "::error::Release tags must look like v1.0.0, v1.0, or v1"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build app, zip, and DMG
+        env:
+          RECORDIT_VERSION: ${{ steps.version.outputs.version }}
+          RECORDIT_BUILD_NUMBER: ${{ github.run_number }}
+        run: make package-fast
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: RecordIt-${{ steps.version.outputs.version }}-macos
+          path: |
+            dist/RecordIt-${{ steps.version.outputs.version }}-macos-*.dmg
+            dist/RecordIt-${{ steps.version.outputs.version }}-macos-*.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: RecordIt ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            dist/RecordIt-${{ steps.version.outputs.version }}-macos-*.dmg
+            dist/RecordIt-${{ steps.version.outputs.version }}-macos-*.zip
+            dist/SHA256SUMS.txt
