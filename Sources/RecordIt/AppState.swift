@@ -64,7 +64,14 @@ final class AppState {
         currentDuration = 0
 
         do {
-            try captureEngine.start(processObjectID: source.audioObjectID)
+            // Resolve the full process set at record time (not list-refresh
+            // time): helpers like Safari's WebKit.GPU service attach when
+            // media playback begins, which may be long after the app launched.
+            var processObjectIDs = AudioSourceEnumerator.processObjectIDs(forAppPID: source.pid)
+            if processObjectIDs.isEmpty {
+                processObjectIDs = [source.audioObjectID]
+            }
+            try captureEngine.start(processObjectIDs: processObjectIDs)
 
             guard let audioFormat = captureEngine.audioFormat else {
                 throw AudioCaptureError.formatCreationFailed
@@ -167,6 +174,11 @@ final class AppState {
     }
 
     func quit() {
+        // Finalize any in-progress recording so quitting doesn't leave a
+        // broken/orphaned file behind.
+        if isRecording {
+            stopRecording()
+        }
         NSApp.terminate(nil)
     }
 

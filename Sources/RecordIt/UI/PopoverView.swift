@@ -56,6 +56,10 @@ struct PopoverView: View {
             sectionCard {
                 saveLocationRow(state: state)
             }
+
+            sectionCard {
+                recordingsSection(state: state)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 4)
@@ -189,6 +193,68 @@ struct PopoverView: View {
         }
     }
 
+    // MARK: - Recent recordings
+
+    private func recordingsSection(state: Bindable<AppState>) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionLabel("Recent Recordings")
+
+            if state.wrappedValue.recordings.isEmpty {
+                Text("No recordings yet")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 4)
+            } else {
+                // Fixed count with fixed row heights (no ScrollView):
+                // MenuBarExtra windows don't size scroll views reliably,
+                // which is what clipped the bottom of this list before.
+                ForEach(state.wrappedValue.recordings.prefix(3)) { recording in
+                    recordingRow(recording, state: state)
+                }
+            }
+        }
+        .padding(10)
+    }
+
+    private func recordingRow(_ recording: Recording, state: Bindable<AppState>) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(recording.title)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text("\(recording.formattedDuration) · \(recording.formattedDate)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            Button {
+                state.wrappedValue.revealRecording(recording)
+            } label: {
+                Image(systemName: "arrow.up.forward.app")
+                    .font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .help("Reveal in Finder")
+
+            Button {
+                state.wrappedValue.deleteRecording(recording)
+            } label: {
+                Image(systemName: "trash")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .help("Delete recording")
+        }
+        .padding(.vertical, 4)
+    }
+
     // MARK: - Recording
 
     private var recordingView: some View {
@@ -285,18 +351,19 @@ struct PopoverView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(.red)
                 .disabled(state.selectedSource.wrappedValue == nil)
-
-                Button(action: state.wrappedValue.quit) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "power")
-                        Text("Quit")
-                            .fontWeight(.medium)
-                    }
-                    .frame(height: 36)
-                }
-                .buttonStyle(.bordered)
-                .help("Quit RecordIt")
             }
+
+            Button(action: state.wrappedValue.quit) {
+                HStack(spacing: 6) {
+                    Image(systemName: "power")
+                    Text("Quit")
+                        .fontWeight(.medium)
+                }
+                .frame(maxWidth: state.wrappedValue.isRecording ? .infinity : nil)
+                .frame(height: 36)
+            }
+            .buttonStyle(.bordered)
+            .help("Quit RecordIt")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

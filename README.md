@@ -43,6 +43,8 @@ RecordIt is split into two targets:
 
 The app uses Core Audio process taps (`CATapDescription` + `AudioHardwareCreateProcessTap`) wrapped in a private `AudioAggregateDevice` to capture audio from a specific process without virtual loopback devices. Audio is encoded via `AVAudioFile` to ALAC or AAC.
 
+An app's audio is not always emitted by its main process — on modern macOS, Safari's sound comes from the `com.apple.WebKit.GPU` XPC service. RecordIt therefore records the full set of processes macOS attributes to the selected app (via responsibility attribution), limited to the ones Core Audio knows about, and re-resolves that set when recording starts.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

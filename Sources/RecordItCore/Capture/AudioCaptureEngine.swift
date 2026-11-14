@@ -17,8 +17,11 @@ public final class AudioCaptureEngine: @unchecked Sendable {
 
     public init() {}
 
-    public func start(processObjectID: AudioObjectID) throws {
-        let description = CATapDescription(stereoMixdownOfProcesses: [processObjectID])
+    public func start(processObjectIDs: [AudioObjectID]) throws {
+        guard !processObjectIDs.isEmpty else {
+            throw AudioCaptureError.noProcessObjectIDs
+        }
+        let description = CATapDescription(stereoMixdownOfProcesses: processObjectIDs)
         description.isPrivate = true
         description.muteBehavior = .unmuted
 
@@ -147,13 +150,15 @@ public final class AudioCaptureEngine: @unchecked Sendable {
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
-        var uid: CFString?
-        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
-        let status = AudioObjectGetPropertyData(tapID, &propAddr, 0, nil, &size, &uid)
-        guard status == noErr, let uid else {
+        var tapUID: CFString = "" as CFString
+        var size = UInt32(MemoryLayout<CFString>.stride)
+        let status = withUnsafeMutablePointer(to: &tapUID) { uidPointer in
+            AudioObjectGetPropertyData(tapID, &propAddr, 0, nil, &size, uidPointer)
+        }
+        guard status == noErr else {
             throw AudioCaptureError.tapUIDFetchFailed(status)
         }
-        return uid as String
+        return tapUID as String
     }
 
     private func createAggregateDevice(tapUID: String) throws -> AudioObjectID {
@@ -192,6 +197,7 @@ public final class AudioCaptureEngine: @unchecked Sendable {
 }
 
 public enum AudioCaptureError: LocalizedError {
+    case noProcessObjectIDs
     case tapCreationFailed(OSStatus)
     case tapUIDFetchFailed(OSStatus)
     case aggregateCreationFailed(OSStatus)
@@ -202,6 +208,7 @@ public enum AudioCaptureError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
+        case .noProcessObjectIDs: return "No audio processes found to record"
         case .tapCreationFailed(let s): return "Failed to create audio tap (error \(s))"
         case .tapUIDFetchFailed(let s): return "Failed to fetch tap UID (error \(s))"
         case .aggregateCreationFailed(let s): return "Failed to create aggregate device (error \(s))"
